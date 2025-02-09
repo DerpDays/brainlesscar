@@ -1,0 +1,27 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+axum = { workspace = true, features = ["ws", "multipart", "http2"] }
+headers = { workspace = true }
+futures-util = { workspace = true }
+axum-extra = { workspace = true, features = ["typed-header"] }
+tower-http = { workspace = true, features = ["fs", "trace"] }
+
+bincode = { workspace = true }
+re_log_types = { workspace = true }
+re_log_encoding = { workspace = true }
+re_memory = { workspace = true }
+re_sdk = { workspace = true, features = ["data_loaders"] }
+re_tracing = { workspace = true }
+re_types = { workspace = true }
+
+ndarray = { workspace = true }
+opencv = { workspace = true }
