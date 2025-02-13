@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::{ConnectInfo, State, WebSocketUpgrade, ws::WebSocket},
+    extract::{ws::WebSocket, ConnectInfo, State, WebSocketUpgrade},
     response::IntoResponse,
 };
 use axum_extra::TypedHeader;
