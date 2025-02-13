@@ -1,3 +1,4 @@
+mod command;
 mod frame;
 mod re_ws;
 
@@ -46,7 +47,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         .route("/rerun", any(re_ws::ws_handler))
-        // .route("/command", any(ws_handler))
+        .route("/command", any(command::ws_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
