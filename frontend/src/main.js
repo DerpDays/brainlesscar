@@ -2,10 +2,12 @@ import "./styles.css";
 
 import { WebViewer } from "@rerun-io/web-viewer";
 
-const rerun_url = `ws://${window.location.host}/rerun`;
+const address = "0.0.0.0";
+
+const rerun_url = `ws://${address}:4000/rerun`;
 const viewerElement = document.getElementById("app");
 
-const command_url = `ws://${window.location.host}/command`;
+const command_url = `ws://${address}:4000/command`;
 /** @type {WebSocket | null} */
 let command_socket = null;
 const mic_button = document.getElementById("microphone");

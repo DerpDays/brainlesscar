@@ -2,13 +2,14 @@ mod command;
 mod frame;
 mod re_ws;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use axum::{Router, routing::any};
+use axum::{routing::any, Router};
 use tokio::runtime::Handle;
 use tower_http::{
     services::ServeDir,
@@ -38,14 +39,11 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let assets_dir = PathBuf::from(env!("FRONTEND_STATIC_DIR"));
-
     let server_state = ServerState {
         rerun: RerunState::new(Handle::current(), MemoryLimit::from_fraction_of_total(0.25)),
     };
 
     let app = Router::new()
-        .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         .route("/rerun", any(re_ws::ws_handler))
         .route("/command", any(command::ws_handler))
         .layer(
@@ -53,11 +51,15 @@ async fn main() -> Result<()> {
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         )
         .with_state(server_state.clone());
+    let addr = std::env::var("SERVER_ADDR").unwrap_or("0.0.0.0".into());
+    let port = std::env::var("SERVER_PORT").unwrap_or("4000".into());
 
-    let listener =
-        tokio::net::TcpListener::bind(format!("{}:{}", env!("SERVER_ADDR"), env!("SERVER_PORT")))
-            .await
-            .unwrap();
+    let listener = tokio::net::TcpListener::bind(SocketAddr::new(
+        IpAddr::from_str(addr.as_ref()).context("addr is not a valid ip")?,
+        port.parse().context("port is not a number")?,
+    ))
+    .await
+    .unwrap();
 
     info!("Now listening on http://{}", listener.local_addr().unwrap());
 
@@ -79,8 +81,13 @@ async fn process_data(state: ServerState, mut frame_capture: FrameCapture) -> Re
         let rec = state.rerun.recorder;
 
         // send the default blueprint
-        let (blueprint, activation_command) =
-            re_ws::get_blueprint(Path::new(env!("RERUN_BLUEPRINT_PATH")))?;
+        let blueprint_path =
+            std::env::var("RERUN_BLUEPRINT_PATH").expect("failed to get blueprint path");
+        let blueprint_path = PathBuf::from(blueprint_path);
+        if !blueprint_path.exists() {
+            bail!("could not find blueprint at given path");
+        }
+        let (blueprint, activation_command) = re_ws::get_blueprint(&blueprint_path)?;
         rec.send_blueprint(blueprint.clone(), activation_command.clone());
 
         loop {
