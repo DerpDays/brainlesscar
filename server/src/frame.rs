@@ -23,9 +23,11 @@ pub struct FrameCapture {
     lidar: LidarCapture,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct CameraSettings {
     pub device: usize,
 }
+#[derive(Clone, Copy, Debug)]
 pub struct LidarSettings;
 
 impl Default for CameraSettings {
