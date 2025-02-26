@@ -59,7 +59,7 @@ impl FrameCapture {
         trace!("fetching frame");
         // Create a memory-mapped stream.
         let mut stream =
-            v4l::io::mmap::Stream::with_buffers(&mut self.camera, Type::VideoCapture, 4)
+            v4l::io::userptr::Stream::with_buffers(&mut self.camera, Type::VideoCapture, 4)
                 .context("failed to create buffer stream")?;
 
         // Capture one frame.
