@@ -24,4 +24,5 @@ re_tracing = { workspace = true }
 re_types = { workspace = true }
 
 ndarray = { workspace = true }
-opencv = { workspace = true }
+v4l = { workspace = true }
+chrono = { workspace = true }  # FIXME: see workspace cargo.toml

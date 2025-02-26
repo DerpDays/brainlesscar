@@ -2,12 +2,13 @@ import "./styles.css";
 
 import { WebViewer } from "@rerun-io/web-viewer";
 
-const address = "0.0.0.0";
+const address = import.meta.env.VITE_BC_SERVER_ADDR;
+const port = import.meta.env.VITE_BC_SERVER_PORT;
 
-const rerun_url = `ws://${address}:4000/rerun`;
+const rerun_url = `ws://${address}:${port}/rerun`;
 const viewerElement = document.getElementById("app");
 
-const command_url = `ws://${address}:4000/command`;
+const command_url = `ws://${address}:${port}/command`;
 /** @type {WebSocket | null} */
 let command_socket = null;
 const mic_button = document.getElementById("microphone");

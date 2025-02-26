@@ -1,98 +1,103 @@
 use crate::ServerState;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
-use ndarray::Array3;
-use opencv::{
-    prelude::*,
-    videoio::{self, VideoCapture},
-};
 use re_sdk::RecordingStream;
 use re_types::{archetypes, datatypes};
+
+use ndarray::Array3;
+use tracing::debug;
+use v4l::buffer::Type;
+use v4l::io::traits::CaptureStream;
+use v4l::prelude::*;
+use v4l::video::Capture;
+use v4l::FourCC;
 
 struct LidarCapture;
 pub struct DepthMap;
 
 // TODO: maybe a more appropriate name
 pub struct FrameCapture {
-    pub rgb: Mat,
+    pub rgb: Option<Array3<u8>>,
     pub depth: DepthMap,
-    camera: VideoCapture,
+    camera: Device,
     lidar: LidarCapture,
 }
 
-struct LoggableMat(Array3<u8>);
-impl From<LoggableMat> for archetypes::Image {
-    fn from(value: LoggableMat) -> Self {
-        archetypes::Image::from_color_model_and_tensor(datatypes::ColorModel::BGR, value.0)
-            .expect("image color model doesn't match data")
-    }
-}
-// TODO: make this better by not getting the size every time
-impl From<&Mat> for LoggableMat {
-    fn from(value: &Mat) -> Self {
-        let mat_size = value.mat_size();
-        let mut size_it = mat_size.iter();
-        let width = *size_it.next().expect("matrix cannot be 0d") as usize;
-        let height = *size_it.next().expect("matrix cannot be 1d") as usize;
-        let data = value.data_bytes().expect("camera matrix is not continous");
-        Self(Array3::from_shape_vec((width, height, 3), data.to_vec()).expect("a"))
-    }
-}
-
 pub struct CameraSettings {
-    pub device: i32,
-    /// OpenCV capture type i.e. videoio::CAP_V4L2
-    pub cap: i32,
+    pub device: usize,
 }
 pub struct LidarSettings;
 
 impl Default for CameraSettings {
     fn default() -> Self {
-        Self {
-            device: 0,
-            cap: videoio::CAP_V4L2,
-        }
+        Self { device: 0 }
     }
 }
 
 impl FrameCapture {
     pub fn new(camera_settings: CameraSettings, lidar_settings: LidarSettings) -> Result<Self> {
-        let cam = VideoCapture::new(camera_settings.device, camera_settings.cap)
-            .context("failed to initialise camera")?;
-        // check the camera actually opened
-        cam.is_opened()?
-            .then_some(())
-            .context("camera device failed to open")?;
-        let rgb_mat = Mat::default();
+        let mut dev =
+            v4l::Device::new(camera_settings.device).context("failed to initialise camera")?;
+        // Get the current format and then modify it to BGR3.
+        let mut fmt = dev.format().context("failed to get format")?;
+        fmt.fourcc = FourCC::new(b"BGR3");
+
+        // try set the format, otherwise fail - should work since we are using libv4l
+        let resulting_format = dev
+            .set_format(&fmt)
+            .context("failed to set camera format")?;
+        if resulting_format.fourcc.repr != *b"BGR3" {
+            bail!("failed to set pixel format to BGR3");
+        }
         Ok(Self {
-            rgb: rgb_mat,
+            rgb: None,
             depth: DepthMap {},
-            camera: cam,
+            camera: dev,
             lidar: LidarCapture {},
         })
     }
     /// Fetch data from the sensors
     pub fn fetch_frame(&mut self) -> Result<()> {
-        if !self
-            .camera
-            .read(&mut self.rgb)
-            .context("failed to read from camera")?
-        {
-            anyhow::bail!("failed to read from camera");
-        };
+        // TODO: reuse stream
+        let mut stream =
+            v4l::io::mmap::Stream::with_buffers(&mut self.camera, Type::VideoCapture, 4)
+                .context("failed to create buffer stream")?;
 
+        // Capture one frame.
+        let (buf, _meta) = stream.next().context("failed to capture frame")?;
+
+        // Retrieve the current format to determine frame dimensions.
+        let fmt = self.camera.format().context("failed to get format")?;
+        let width = fmt.width as usize;
+        let height = fmt.height as usize;
+        let expected_size = width * height * 3; // 3 channels (RGB)
+        if buf.len() != expected_size {
+            anyhow::bail!("captured buffer is not the expected size");
+        }
+
+        // TODO: see if we can do without ndarray
+        // Convert the raw buffer into an ndarray.
+        // Note that ndarray’s shape is (height, width, channels).
+        let arr = Array3::from_shape_vec((height, width, 3), buf[..expected_size].to_vec())
+            .context("failed to create ndarray from frame data")?;
+        self.rgb = Some(arr);
         Ok(())
     }
+
     /// Process the current frame
     pub fn process_frame(&mut self) -> Result<()> {
         Ok(())
     }
 
     pub fn log(&self, rec: &RecordingStream) -> Result<()> {
-        rec.log(
-            "world/camera/rgb",
-            &archetypes::Image::from(LoggableMat::from(&self.rgb)),
-        )?;
+        if let Some(ref rgb) = self.rgb {
+            let image = archetypes::Image::from_color_model_and_tensor(
+                datatypes::ColorModel::BGR,
+                rgb.clone(),
+            )
+            .expect("failed to convert frame to archetype image");
+            rec.log("world/camera/rgb", &image)?;
+        }
         Ok(())
     }
 }

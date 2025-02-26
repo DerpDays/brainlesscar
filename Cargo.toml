@@ -26,4 +26,7 @@ re_tracing = "0.22.0"
 re_types = "0.22.0"
 
 ndarray = "0.16.1"
-opencv = "0.94.2"
+
+v4l = { version = "0.14.0", default-features = false, features = ["libv4l"] }
+
+chrono = "= 0.4.39" # FIXME: remove, only temp to fix compilation issue with arrow-rs

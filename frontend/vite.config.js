@@ -14,8 +14,11 @@ export default defineConfig({
                 ? []
                 : ["@rerun-io/web-viewer"],
     },
+    base: "/bc",
     server: {
         port: 5173,
+        host: "0.0.0.0",
+        allowedHosts: ["local.alexdias.dev"],
     },
     build: { outDir: path.join(process.cwd(), "static") },
 });
