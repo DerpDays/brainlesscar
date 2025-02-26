@@ -5,7 +5,7 @@ use re_sdk::RecordingStream;
 use re_types::{archetypes, datatypes};
 
 use ndarray::Array3;
-use tracing::debug;
+use tracing::{debug, instrument};
 use v4l::buffer::Type;
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::*;
@@ -35,6 +35,7 @@ impl Default for CameraSettings {
 }
 
 impl FrameCapture {
+    #[instrument]
     pub fn new(camera_settings: CameraSettings, lidar_settings: LidarSettings) -> Result<Self> {
         let mut dev =
             v4l::Device::new(camera_settings.device).context("failed to initialise camera")?;
@@ -57,6 +58,7 @@ impl FrameCapture {
         })
     }
     /// Fetch data from the sensors
+    #[instrument(skip_all)]
     pub fn fetch_frame(&mut self) -> Result<()> {
         // TODO: reuse stream
         let mut stream =
@@ -85,10 +87,12 @@ impl FrameCapture {
     }
 
     /// Process the current frame
+    #[instrument(skip_all)]
     pub fn process_frame(&mut self) -> Result<()> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub fn log(&self, rec: &RecordingStream) -> Result<()> {
         if let Some(ref rgb) = self.rgb {
             let image = archetypes::Image::from_color_model_and_tensor(
