@@ -5,7 +5,7 @@ use re_sdk::RecordingStream;
 use re_types::{archetypes, datatypes};
 
 use ndarray::Array3;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 use v4l::buffer::Type;
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::*;
@@ -39,6 +39,7 @@ impl Default for CameraSettings {
 impl FrameCapture {
     #[instrument]
     pub fn new(camera_settings: CameraSettings, lidar_settings: LidarSettings) -> Result<Self> {
+        debug!("initialising camera");
         let mut dev =
             v4l::Device::new(camera_settings.device).context("failed to initialise camera")?;
         // Get the current format and then modify it to BGR3.
@@ -62,6 +63,7 @@ impl FrameCapture {
     /// Fetch data from the sensors
     #[instrument(skip_all)]
     pub fn fetch_frame(&mut self) -> Result<()> {
+        trace!("fetching frame");
         // TODO: reuse stream
         let mut stream =
             v4l::io::mmap::Stream::with_buffers(&mut self.camera, Type::VideoCapture, 4)
