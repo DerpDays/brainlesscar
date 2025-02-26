@@ -26,3 +26,4 @@ re_types = { workspace = true }
 ndarray = { workspace = true }
 v4l = { workspace = true }
 chrono = { workspace = true }  # FIXME: see workspace cargo.toml
+bayer = { workspace = true }

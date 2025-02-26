@@ -28,5 +28,6 @@ re_types = "0.22.0"
 ndarray = "0.16.1"
 
 v4l = { version = "0.14.0", default-features = false, features = ["libv4l"] }
+bayer = "0.1.5"
 
 chrono = "= 0.4.39" # FIXME: remove, only temp to fix compilation issue with arrow-rs
